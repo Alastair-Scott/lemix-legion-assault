@@ -16,12 +16,12 @@ interface RegionConfig {
 
 const REGION_CONFIGS: Record<Region, RegionConfig> = {
   EU: {
-    timezoneOffset: 1, // UTC+1
-    referenceStartTime: new Date('2025-11-06T13:00:00Z').getTime() // 14:00 ST = 13:00 UTC
+    timezoneOffset: 1, // UTC+1 (CET)
+    referenceStartTime: new Date('2025-11-06T13:00:00Z').getTime() // 14:00 CET = 13:00 UTC
   },
   US: {
-    timezoneOffset: -5, // UTC-5 (EST) - adjust as needed
-    referenceStartTime: null // No reference time available yet
+    timezoneOffset: -8, // UTC-8 (PST)
+    referenceStartTime: new Date('2025-11-06T12:30:00Z').getTime() // 4:30 AM PST (Nov 6) = 12:30 UTC (Nov 6)
   }
 }
 
@@ -160,13 +160,31 @@ function calculateUpcomingAssaults(region: Region, count: number = 5): UpcomingA
   return upcoming
 }
 
-function formatServerTime(timestamp: number, timezoneOffset: number): string {
+function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) {
+    return 'th'
+  }
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+function getMonthName(month: number): string {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return monthNames[month - 1]
+}
+
+function formatServerTime(timestamp: number, region: Region): string {
   const utcDate = new Date(timestamp)
   
   // Get UTC components
   let year = utcDate.getUTCFullYear()
   let month = utcDate.getUTCMonth() + 1 // getUTCMonth() returns 0-11
   let day = utcDate.getUTCDate()
+  const timezoneOffset = REGION_CONFIGS[region].timezoneOffset
   let hours = utcDate.getUTCHours() + timezoneOffset
   const minutes = utcDate.getUTCMinutes()
   
@@ -203,14 +221,18 @@ function formatServerTime(timestamp: number, timezoneOffset: number): string {
     }
   }
   
-  // Format with leading zeros
-  const formattedDay = String(day).padStart(2, '0')
-  const formattedMonth = String(month).padStart(2, '0')
-  const formattedHours = String(hours).padStart(2, '0')
-  const formattedMinutes = String(minutes).padStart(2, '0')
+  // Format time
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const displayHours = hours % 12 || 12
+  const formattedMinutes = minutes > 0 ? `:${String(minutes).padStart(2, '0')}` : ''
+  const timeString = `${displayHours}${formattedMinutes} ${period}`
   
-  const offsetSign = timezoneOffset >= 0 ? '+' : ''
-  return `${formattedDay}/${formattedMonth}/${year} ${formattedHours}:${formattedMinutes} ST (UTC${offsetSign}${timezoneOffset})`
+  // Format date with ordinal suffix
+  const ordinalSuffix = getOrdinalSuffix(day)
+  const monthName = getMonthName(month)
+  const dateString = `${day}${ordinalSuffix} ${monthName}`
+  
+  return `${dateString}, ${timeString}`
 }
 
 function getRegionFromHash(): Region {
@@ -263,8 +285,7 @@ function App() {
     return () => clearInterval(interval)
   }, [region])
 
-  const config = REGION_CONFIGS[region]
-  const timezoneLabel = region === 'EU' ? 'UTC+1' : `UTC${config.timezoneOffset >= 0 ? '+' : ''}${config.timezoneOffset}`
+  const timezoneLabel = region === 'EU' ? 'CET' : 'PST'
   const upcomingAssaults = calculateUpcomingAssaults(region, 5)
 
   return (
@@ -311,11 +332,11 @@ function App() {
                 <div className="time-info">
                   <div className="time-info-row">
                     <span className="time-info-label">Started:</span>
-                    <span className="time-info-value">{formatServerTime(status.currentStartTime, config.timezoneOffset)}</span>
+                    <span className="time-info-value">{formatServerTime(status.currentStartTime, region)}</span>
                   </div>
                   <div className="time-info-row">
                     <span className="time-info-label">Ends:</span>
-                    <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
+                    <span className="time-info-value">{formatServerTime(status.currentEndTime, region)}</span>
                   </div>
                 </div>
               </>
@@ -332,11 +353,11 @@ function App() {
                 <div className="time-info">
                   <div className="time-info-row">
                     <span className="time-info-label">Next Start:</span>
-                    <span className="time-info-value">{formatServerTime(status.nextStartTime, config.timezoneOffset)}</span>
+                    <span className="time-info-value">{formatServerTime(status.nextStartTime, region)}</span>
                   </div>
                   <div className="time-info-row">
                     <span className="time-info-label">Next End:</span>
-                    <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
+                    <span className="time-info-value">{formatServerTime(status.currentEndTime, region)}</span>
                   </div>
                 </div>
               </>
@@ -353,11 +374,11 @@ function App() {
                     <div className="upcoming-times">
                       <div className="upcoming-time-row">
                         <span className="upcoming-label">Start:</span>
-                        <span className="upcoming-value">{formatServerTime(assault.startTime, config.timezoneOffset)}</span>
+                        <span className="upcoming-value">{formatServerTime(assault.startTime, region)}</span>
                       </div>
                       <div className="upcoming-time-row">
                         <span className="upcoming-label">End:</span>
-                        <span className="upcoming-value">{formatServerTime(assault.endTime, config.timezoneOffset)}</span>
+                        <span className="upcoming-value">{formatServerTime(assault.endTime, region)}</span>
                       </div>
                     </div>
                   </div>
@@ -368,7 +389,7 @@ function App() {
         </div>
         
         <div className="info">
-          <p className="timezone-note">All times shown in Server Time (ST, {timezoneLabel})</p>
+          <p className="timezone-note">All times shown in {timezoneLabel}</p>
           <p className="timezone-note">Found a bug? Report it <a href="https://github.com/Alastair-Scott/lemix-legion-assault/issues" target="_blank" rel="noopener noreferrer">here</a></p>
         </div>
       </div>
