@@ -34,6 +34,11 @@ interface AssaultStatus {
   hasReference: boolean
 }
 
+interface UpcomingAssault {
+  startTime: number // timestamp (UTC)
+  endTime: number // timestamp (UTC)
+}
+
 function calculateAssaultStatus(region: Region): AssaultStatus {
   const config = REGION_CONFIGS[region]
   
@@ -120,7 +125,41 @@ function formatTime(ms: number): string {
   }
 }
 
-// Convert UTC timestamp to Server Time and format as date/time string
+function calculateUpcomingAssaults(region: Region, count: number = 5): UpcomingAssault[] {
+  const config = REGION_CONFIGS[region]
+  
+  if (config.referenceStartTime === null) {
+    return []
+  }
+  
+  const status = calculateAssaultStatus(region)
+  const now = Date.now()
+  
+  // Determine the next assault start time
+  let nextStartTime: number
+  if (status.isActive) {
+    // Currently active, so next one starts after current ends + wait period
+    nextStartTime = status.currentEndTime + (WAIT_DURATION_HOURS * 60 * 60 * 1000)
+  } else {
+    // Not active, so next one is the nextStartTime
+    nextStartTime = status.nextStartTime
+  }
+  
+  const upcoming: UpcomingAssault[] = []
+  
+  for (let i = 0; i < count; i++) {
+    const startTime = nextStartTime + (i * CYCLE_DURATION_HOURS * 60 * 60 * 1000)
+    const endTime = startTime + (ASSAULT_DURATION_HOURS * 60 * 60 * 1000)
+    
+    // Only include future assaults
+    if (startTime > now) {
+      upcoming.push({ startTime, endTime })
+    }
+  }
+  
+  return upcoming
+}
+
 function formatServerTime(timestamp: number, timezoneOffset: number): string {
   const utcDate = new Date(timestamp)
   
@@ -226,6 +265,7 @@ function App() {
 
   const config = REGION_CONFIGS[region]
   const timezoneLabel = region === 'EU' ? 'UTC+1' : `UTC${config.timezoneOffset >= 0 ? '+' : ''}${config.timezoneOffset}`
+  const upcomingAssaults = calculateUpcomingAssaults(region, 5)
 
   return (
     <div className="app">
@@ -248,57 +288,82 @@ function App() {
           </button>
         </div>
         
-        <div className={`status-card ${status.hasReference ? (status.isActive ? 'active' : 'waiting') : 'no-reference'}`}>
-          {!status.hasReference ? (
-            <div className="no-reference-message">
-              <div className="status-indicator">
-                <span className="status-icon">❓</span>
-                <span className="status-text">No Reference Available</span>
+        <div className="content-grid">
+          <div className={`status-card ${status.hasReference ? (status.isActive ? 'active' : 'waiting') : 'no-reference'}`}>
+            {!status.hasReference ? (
+              <div className="no-reference-message">
+                <div className="status-indicator">
+                  <span className="status-icon">❓</span>
+                  <span className="status-text">No Reference Available</span>
+                </div>
+                <p>We don't currently have a reference time to start tracking US server assaults.</p>
               </div>
-              <p>We don't currently have a reference time to start tracking US server assaults.</p>
+            ) : status.isActive ? (
+              <>
+                <div className="status-indicator active-indicator">
+                  <span className="status-icon">⚔️</span>
+                  <span className="status-text">Assault Active</span>
+                </div>
+                <div className="time-display">
+                  <div className="time-label">Time Remaining</div>
+                  <div className="time-value">{formatTime(status.timeRemaining)}</div>
+                </div>
+                <div className="time-info">
+                  <div className="time-info-row">
+                    <span className="time-info-label">Started:</span>
+                    <span className="time-info-value">{formatServerTime(status.currentStartTime, config.timezoneOffset)}</span>
+                  </div>
+                  <div className="time-info-row">
+                    <span className="time-info-label">Ends:</span>
+                    <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="status-indicator waiting-indicator">
+                  <span className="status-icon">⏳</span>
+                  <span className="status-text">Assault Inactive</span>
+                </div>
+                <div className="time-display">
+                  <div className="time-label">Next Assault In</div>
+                  <div className="time-value">{formatTime(status.timeRemaining)}</div>
+                </div>
+                <div className="time-info">
+                  <div className="time-info-row">
+                    <span className="time-info-label">Next Start:</span>
+                    <span className="time-info-value">{formatServerTime(status.nextStartTime, config.timezoneOffset)}</span>
+                  </div>
+                  <div className="time-info-row">
+                    <span className="time-info-label">Next End:</span>
+                    <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
+          {status.hasReference && upcomingAssaults.length > 0 && (
+            <div className="upcoming-assaults">
+              <h3>Upcoming Assaults</h3>
+              <div className="upcoming-list">
+                {upcomingAssaults.map((assault, index) => (
+                  <div key={index} className="upcoming-item">
+                    <div className="upcoming-number">{index + 1}</div>
+                    <div className="upcoming-times">
+                      <div className="upcoming-time-row">
+                        <span className="upcoming-label">Start:</span>
+                        <span className="upcoming-value">{formatServerTime(assault.startTime, config.timezoneOffset)}</span>
+                      </div>
+                      <div className="upcoming-time-row">
+                        <span className="upcoming-label">End:</span>
+                        <span className="upcoming-value">{formatServerTime(assault.endTime, config.timezoneOffset)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : status.isActive ? (
-            <>
-              <div className="status-indicator active-indicator">
-                <span className="status-icon">⚔️</span>
-                <span className="status-text">Assault Active</span>
-              </div>
-              <div className="time-display">
-                <div className="time-label">Time Remaining</div>
-                <div className="time-value">{formatTime(status.timeRemaining)}</div>
-              </div>
-              <div className="time-info">
-                <div className="time-info-row">
-                  <span className="time-info-label">Started:</span>
-                  <span className="time-info-value">{formatServerTime(status.currentStartTime, config.timezoneOffset)}</span>
-                </div>
-                <div className="time-info-row">
-                  <span className="time-info-label">Ends:</span>
-                  <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="status-indicator waiting-indicator">
-                <span className="status-icon">⏳</span>
-                <span className="status-text">Assault Inactive</span>
-              </div>
-              <div className="time-display">
-                <div className="time-label">Next Assault In</div>
-                <div className="time-value">{formatTime(status.timeRemaining)}</div>
-              </div>
-              <div className="time-info">
-                <div className="time-info-row">
-                  <span className="time-info-label">Next Start:</span>
-                  <span className="time-info-value">{formatServerTime(status.nextStartTime, config.timezoneOffset)}</span>
-                </div>
-                <div className="time-info-row">
-                  <span className="time-info-label">Next End:</span>
-                  <span className="time-info-value">{formatServerTime(status.currentEndTime, config.timezoneOffset)}</span>
-                </div>
-              </div>
-            </>
           )}
         </div>
         

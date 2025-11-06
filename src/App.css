@@ -1,21 +1,47 @@
 .app {
   width: 100%;
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 2rem;
   box-sizing: border-box;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .container {
-  max-width: 600px;
+  max-width: 1400px;
   width: 100%;
   text-align: center;
   overflow: visible;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+@media (min-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  
+  .status-card {
+    margin-bottom: 0;
+    position: sticky;
+    top: 2rem;
+  }
+  
+  .upcoming-assaults {
+    margin-top: 0;
+    padding-left: 0;
+  }
+  
+  .upcoming-assaults h3 {
+    text-align: left;
+  }
 }
 
 h1 {
@@ -75,10 +101,11 @@ h2 {
   background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
   border-radius: 20px;
   padding: 3rem 2rem;
-  margin-bottom: 2rem;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
   transition: all 0.3s ease;
+  height: fit-content;
+  min-width: clamp(300px, 30vw, 400px);
 }
 
 .status-card.active {
@@ -94,6 +121,7 @@ h2 {
 .status-card.no-reference {
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  grid-column: 1 / -1;
 }
 
 .no-reference-message {
@@ -166,6 +194,7 @@ h2 {
   align-items: center;
   margin: 0.75rem 0;
   padding: 0.5rem 0;
+  gap: 0.5rem;
 }
 
 .time-info-label {
@@ -198,6 +227,83 @@ h2 {
   font-style: italic;
   opacity: 0.8;
   color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.upcoming-assaults {
+  margin-top: 0;
+  margin-bottom: 0;
+  height: fit-content;
+  padding: 0;
+}
+
+@media (max-width: 1023px) {
+  .upcoming-assaults {
+    margin-top: 0;
+  }
+}
+
+.upcoming-assaults h3 {
+  font-size: 1.3em;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  text-align: center;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upcoming-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.upcoming-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(4px);
+}
+
+.upcoming-number {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.upcoming-times {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upcoming-time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.upcoming-label {
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.upcoming-value {
+  font-size: 0.95em;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes pulse {
@@ -295,6 +401,30 @@ h2 {
     font-style: italic;
     opacity: 0.8;
     color: rgba(0, 0, 0, 0.6) !important;
+  }
+  
+  .upcoming-assaults h3 {
+    color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .upcoming-item {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .upcoming-item:hover {
+    background: rgba(0, 0, 0, 0.08);
+  }
+  
+  .upcoming-number {
+    color: rgba(0, 0, 0, 0.5);
+  }
+  
+  .upcoming-label {
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .upcoming-value {
+    color: rgba(0, 0, 0, 0.9);
   }
   
   .info {
